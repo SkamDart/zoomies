@@ -1,0 +1,14 @@
+[package]
+name = "zoomies"
+version = "0.1.0"
+authors = ["Cameron Dart <cdart@anduril.com>"]
+license = "MIT"
+description = "An asynchronous DogStatsD client for Rust."
+documentation = "https://github.com/SkamDart/zoomies"
+keywords = [ "datadog", "dogstatsd", "client", "async" ]
+edition = "2018"
+
+[dependencies]
+async-std = "1.6.3"
+chrono = "0.4"
+
