@@ -24,11 +24,10 @@ use std::borrow::Cow;
 use std::fmt;
 
 use async_std::{io::Result, net::UdpSocket};
-use chrono::Utc;
 use num_integer::Integer;
 
-mod metric;
-use metric::*;
+mod metrics;
+use metrics::*;
 
 pub struct ConfigBuilder {
     from_addr: String,
@@ -64,7 +63,7 @@ impl ConfigBuilder {
         ConfigBuilder {
             from_addr: self.from_addr.clone(),
             to_addr: self.to_addr.clone(),
-            namespace: self.namespace.clone()
+            namespace: self.namespace.clone(),
         }
     }
 }
@@ -84,37 +83,77 @@ impl Client {
     }
 
     /// Increment a StatsD counter.
-    pub async fn inc<'a, I, S, T>(&self, stat: S, tags: I) -> Result<()>
+    pub async fn inc<'a, I, S, T>(&self, metric_name: S, tags: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
         S: Into<Cow<'a, str>>,
         T: Tag,
     {
-        self.send(&CountMetric::Inc(stat.into().as_ref(), 0), tags)
+        self.send(&Count::Inc(metric_name.into().as_ref(), 0), tags)
             .await
     }
 
     /// Decrement a StatsD counter.
-    pub async fn dec<'a, I, S, T>(&self, stat: S, tags: I) -> Result<()>
+    pub async fn dec<'a, I, S, T>(&self, metric_name: S, tags: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
         S: Into<Cow<'a, str>>,
         T: Tag,
     {
-        self.send(&CountMetric::Dec(stat.into().as_ref(), 0), tags)
+        self.send(&Count::Dec(metric_name.into().as_ref(), 0), tags)
             .await
     }
 
     /// Arbitrarily add to  a StatsD counter.
-    pub async fn arb<'a, I, S, T, N>(&self, stat: S, n: N, tags: I) -> Result<()>
+    pub async fn arb<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
         S: Into<Cow<'a, str>>,
         T: Tag,
         N: Copy + fmt::Display + Integer,
     {
-        self.send(&CountMetric::Arb(stat.into().as_ref(), n), tags)
+        self.send(&Count::Arb(metric_name.into().as_ref(), n), tags)
             .await
+    }
+
+    pub async fn histogram<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
+    where
+        I: IntoIterator<Item = T>,
+        S: Into<Cow<'a, str>>,
+        T: Tag,
+        N: Copy + fmt::Display + Integer,
+    {
+        self.send(&Histogram::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+    }
+
+    pub async fn distribution<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
+    where
+        I: IntoIterator<Item = T>,
+        S: Into<Cow<'a, str>>,
+        T: Tag,
+        N: Copy + fmt::Display + Integer,
+    {
+        self.send(&Distribution::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+    }
+
+    pub async fn set<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
+    where
+        I: IntoIterator<Item = T>,
+        S: Into<Cow<'a, str>>,
+        T: Tag,
+        N: Copy + fmt::Display + Integer,
+    {
+        self.send(&Set::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+    }
+
+    pub async fn gauge<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
+    where
+        I: IntoIterator<Item = T>,
+        S: Into<Cow<'a, str>>,
+        T: Tag,
+        N: Copy + fmt::Display + Integer,
+    {
+        self.send(&Gauge::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
     }
 
     async fn send<M, I, T>(&self, metric: &M, tags: I) -> Result<()>
