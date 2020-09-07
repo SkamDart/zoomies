@@ -7,7 +7,6 @@ use num_integer::Integer;
 ///
 /// Metrics
 /// - Count
-/// - Rate
 /// - Gauge
 /// - Set
 /// - Histogram
@@ -198,6 +197,51 @@ fn write_count_metric_arb<T: Integer + fmt::Display>(name: &str, amt: T) -> Stri
     buf
 }
 
+#[cfg(test)]
 mod tests {
-    // use super::*;
+    /// Metrics
+    /// - Count
+    /// - Gauge
+    /// - Set
+    /// - Histogram
+    /// - Distribution
+    use super::*;
+
+    #[test]
+    fn test_metrics_arb() {
+        let arb = Count::Arb("custom_metric", 5);
+        assert_eq!(arb.write(), "custom_metric:5|c");
+    }
+
+    #[test]
+    fn test_metrics_inc() {
+        let inc = Count::Inc("custom_metric", 1);
+        assert_eq!(inc.write(), "custom_metric:1|c");
+    }
+
+    #[test]
+    fn test_metrics_dec() {
+        let dec = Count::Dec("custom_metric", -1);
+        assert_eq!(dec.write(), "custom_metric:-1|c");
+    }
+
+    #[test]
+    fn test_metrics_gauge() {
+        assert_eq!(Gauge::new("custom_metric", "3").write(), "custom_metric:3|g");
+    }
+
+    #[test]
+    fn test_metrics_set() {
+        assert_eq!(Set::new("custom_metric", "person").write(), "custom_metric:person|s");
+    }
+
+    #[test]
+    fn test_metrics_histogram() {
+        assert_eq!(Histogram::new("custom_metric", "240").write(), "custom_metric:240|h");
+    }
+
+    #[test]
+    fn test_metrics_distribution() {
+        assert_eq!(Distribution::new("custom_metric", "42").write(), "custom_metric:42|d");
+    }
 }

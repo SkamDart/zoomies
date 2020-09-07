@@ -2,7 +2,7 @@
 //!
 //! ## Usage
 //!
-//! Build a `Config` and use it to build an asynchronous `Client`.
+//! Use a `ConfigBuilder` to configure an asynchronous `Client`.
 //!
 //! ```
 //! use zoomies::{Client, ConfigBuilder};
@@ -116,6 +116,9 @@ impl Client {
             .await
     }
 
+    /// Adds a value to histogram metric type.
+    ///
+    /// The HISTOGRAM metric submission type represents the statistical distribution of a set of values calculated Agent-side in one time interval.
     pub async fn histogram<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -123,9 +126,16 @@ impl Client {
         T: Tag,
         N: Copy + fmt::Display + Integer,
     {
-        self.send(&Histogram::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+        self.send(
+            &Histogram::new(metric_name.into().as_ref(), n.to_string().as_ref()),
+            tags,
+        )
+        .await
     }
 
+    /// Adds a value to the distribution metric type.
+    ///
+    /// The DISTRIBUTION metric submission type represents the global statistical distribution of a set of values calculated across your entire distributed infrastructure in one time interval.
     pub async fn distribution<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -133,7 +143,11 @@ impl Client {
         T: Tag,
         N: Copy + fmt::Display + Integer,
     {
-        self.send(&Distribution::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+        self.send(
+            &Distribution::new(metric_name.into().as_ref(), n.to_string().as_ref()),
+            tags,
+        )
+        .await
     }
 
     pub async fn set<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
@@ -143,9 +157,18 @@ impl Client {
         T: Tag,
         N: Copy + fmt::Display + Integer,
     {
-        self.send(&Set::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+        self.send(
+            &Set::new(metric_name.into().as_ref(), n.to_string().as_ref()),
+            tags,
+        )
+        .await
     }
 
+    /// Adds a gauge value.
+    ///
+    /// The GAUGE metric submission type represents a snapshot of events in one time interval.
+    /// This representative snapshot value is the last value submitted to the Agent during a time interval.
+    /// A GAUGE can be used to take a measure of something reporting continuously—like the available disk space or memory used.
     pub async fn gauge<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -153,7 +176,11 @@ impl Client {
         T: Tag,
         N: Copy + fmt::Display + Integer,
     {
-        self.send(&Gauge::new(metric_name.into().as_ref(), n.to_string().as_ref()), tags).await
+        self.send(
+            &Gauge::new(metric_name.into().as_ref(), n.to_string().as_ref()),
+            tags,
+        )
+        .await
     }
 
     async fn send<M, I, T>(&self, metric: &M, tags: I) -> Result<()>
