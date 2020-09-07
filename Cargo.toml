@@ -9,6 +9,6 @@ keywords = [ "datadog", "dogstatsd", "client", "async" ]
 edition = "2018"
 
 [dependencies]
-async-std = "1.6.3"
+async-std = { version = "1.6.3", features = [ "attributes" ] }
 chrono = "0.4"
-
+num-integer = "0.1.43"
