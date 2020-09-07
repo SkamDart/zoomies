@@ -24,8 +24,8 @@ pub enum CountMetric<'a, T: Integer + fmt::Display> {
 impl<'a, T: Clone + fmt::Display + Integer> Metric for CountMetric<'a, T> {
     fn write(&self) -> String {
         match &*self {
-            CountMetric::Inc(name, _) => write_count_metric_inc(name),
-            CountMetric::Dec(name, _) => write_count_metric_dec(name),
+            CountMetric::Inc(name, _) => write_count_metric_arb(name, 1),
+            CountMetric::Dec(name, _) => write_count_metric_arb(name, -1),
             CountMetric::Arb(name, amt) => write_count_metric_arb(name, amt.clone()),
         }
     }
@@ -54,32 +54,25 @@ where
 
     msg.extend_from_slice(m.as_bytes());
 
-    for tag in tags.into_iter() {
-        tag.write(&mut msg)?;
+    let mut tags_iter = tags.into_iter();
+    let mut next_tag = tags_iter.next();
+
+    while next_tag.is_some() {
+        next_tag.unwrap().write(&mut msg)?;
+        next_tag = tags_iter.next();
     }
 
     Ok(msg)
 }
 
-fn write_count_metric_inc(name: &str) -> String {
-    let mut buf = String::with_capacity(3 + name.len() + 4);
-    buf.push_str(name);
-    buf.push_str(":1|c");
-    buf
-}
-
-fn write_count_metric_dec(name: &str) -> String {
-    let mut buf = String::with_capacity(3 + name.len() + 5);
-    buf.push_str(name);
-    buf.push_str(":-1|c");
-    buf
-}
-
 fn write_count_metric_arb<T: Integer + fmt::Display>(name: &str, amt: T) -> String {
-    let mut buf = String::with_capacity(3 + name.len() + 23);
+    let (mut buf, num) = {
+        let num = amt.to_string();
+        (String::with_capacity(3 + name.len() + num.len()), num)
+    };
     buf.push_str(name);
     buf.push_str(":");
-    buf.push_str(&amt.to_string());
+    buf.push_str(&num);
     buf.push_str("|c");
     buf
 }
