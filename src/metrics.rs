@@ -227,21 +227,33 @@ mod tests {
 
     #[test]
     fn test_metrics_gauge() {
-        assert_eq!(Gauge::new("custom_metric", "3").write(), "custom_metric:3|g");
+        assert_eq!(
+            Gauge::new("custom_metric", "3").write(),
+            "custom_metric:3|g"
+        );
     }
 
     #[test]
     fn test_metrics_set() {
-        assert_eq!(Set::new("custom_metric", "person").write(), "custom_metric:person|s");
+        assert_eq!(
+            Set::new("custom_metric", "person").write(),
+            "custom_metric:person|s"
+        );
     }
 
     #[test]
     fn test_metrics_histogram() {
-        assert_eq!(Histogram::new("custom_metric", "240").write(), "custom_metric:240|h");
+        assert_eq!(
+            Histogram::new("custom_metric", "240").write(),
+            "custom_metric:240|h"
+        );
     }
 
     #[test]
     fn test_metrics_distribution() {
-        assert_eq!(Distribution::new("custom_metric", "42").write(), "custom_metric:42|d");
+        assert_eq!(
+            Distribution::new("custom_metric", "42").write(),
+            "custom_metric:42|d"
+        );
     }
 }

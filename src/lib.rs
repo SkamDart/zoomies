@@ -27,7 +27,7 @@ use async_std::{io::Result, net::UdpSocket};
 use num_integer::Integer;
 
 mod metrics;
-use metrics::*;
+pub use metrics::*;
 
 pub struct ConfigBuilder {
     from_addr: String,
