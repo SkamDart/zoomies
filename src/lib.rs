@@ -197,10 +197,10 @@ impl Client {
         .await
     }
 
-    pub async fn log<T>(&self, event: Event, _tags: T) -> Result<()>
-    where T : Tag
-    {
-        self.socket.send_to(&event.format().as_bytes(), &self.config.to_addr).await?;
+    pub async fn log(&self, event: Event) -> Result<()> {
+        self.socket
+            .send_to(&event.format().as_bytes(), &self.config.to_addr)
+            .await?;
         Ok(())
     }
 

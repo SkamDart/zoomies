@@ -6,11 +6,11 @@
 ///
 /// ## Send an event with a newline in the text
 /// _e{21,42}:An exception occurred|Cannot parse JSON request:\\n{"foo: "bar"}|p:low|#err_type:bad_request
-use std::borrow::Cow;
 use std::time::SystemTime;
 
 use crate::DatagramFormat;
 
+#[derive(Clone, PartialEq)]
 pub enum Priority {
     Low,
     Normal,
@@ -39,6 +39,7 @@ impl DatagramFormat for Option<Priority> {
     }
 }
 
+#[derive(Clone, PartialEq)]
 pub enum AlertType {
     Error,
     Info,
@@ -99,67 +100,62 @@ impl Event {
     /// Creates a new Event with default options..
     ///
     /// You probably don't want this by itself.
-    fn new() -> Self {
+    pub fn new() -> Self {
         Event::default()
     }
 
     /// Set the event Title...
-    fn title<'a, S>(&mut self, title: S) -> &mut Self
-    where
-        S: Into<Cow<'a, str>>,
-    {
-        self.title = title.into().to_string();
-        self
-    }
-    fn text<'a, S>(&mut self, text: S) -> &mut Self
-    where
-        S: Into<Cow<'a, str>>,
-    {
-        self.text = text.into().to_string();
+    pub fn title(&mut self, title: &str) -> &mut Self {
+        self.title = title.to_string();
         self
     }
 
-    fn timestamp(&mut self, ts: SystemTime) -> &mut Self {
+    pub fn text(&mut self, text: &str) -> &mut Self {
+        self.text = text.to_string();
+        self
+    }
+
+    pub fn timestamp(&mut self, ts: SystemTime) -> &mut Self {
         self.timestamp = Some(ts);
         self
     }
 
-    fn hostname<'a, S>(&mut self, host: S) -> &mut Self
-    where
-        S: Into<Cow<'a, str>>,
-    {
-        self.hostname = Some(host.into().to_string());
+    pub fn hostname(&mut self, host: &str) -> &mut Self {
+        self.hostname = Some(host.to_string());
         self
     }
 
-    fn agg_key<'a, S>(&mut self, agg_key: S) -> &mut Self
-    where
-        S: Into<Cow<'a, str>>,
-    {
-        self.agg_key = Some(agg_key.into().to_string());
+    pub fn agg_key(&mut self, agg_key: &str) -> &mut Self {
+        self.agg_key = Some(agg_key.to_string());
         self
     }
 
-    fn priority(&mut self, priority: Priority) -> &mut Self {
+    pub fn priority(&mut self, priority: Priority) -> &mut Self {
         self.priority = Some(priority);
         self
     }
 
-    fn source_type_name<'a, S>(&mut self, name: S) -> &mut Self
-    where
-        S: Into<Cow<'a, str>>,
-    {
-        self.source_type_name = Some(name.into().to_string());
+    pub fn source_type_name(&mut self, name: &str) -> &mut Self {
+        self.source_type_name = Some(name.to_string());
         self
     }
 
-    fn alert_type(&mut self, alert_type: AlertType) -> &mut Self {
+    pub fn alert_type(&mut self, alert_type: AlertType) -> &mut Self {
         self.alert_type = Some(alert_type);
         self
     }
 
-    fn build(self) -> Result<Event, &'static str> {
-        Ok(self)
+    pub fn build(&mut self) -> Result<Event, &'static str> {
+        Ok(Event {
+            title: self.title.to_string(),
+            text: self.text.to_string(),
+            timestamp: self.timestamp,
+            hostname: self.hostname.clone(),
+            agg_key: self.agg_key.clone(),
+            priority: self.priority.clone(),
+            source_type_name: self.source_type_name.clone(),
+            alert_type: self.alert_type.clone(),
+        })
     }
 }
 
