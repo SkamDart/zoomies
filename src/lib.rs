@@ -19,15 +19,22 @@
 //!   Ok(())
 //! }
 //! ```
-
 use std::borrow::Cow;
+use std::default;
 use std::fmt;
 
 use async_std::{io::Result, net::UdpSocket};
 use num_integer::Integer;
 
+mod events;
+pub use events::*;
+
 mod metrics;
 pub use metrics::*;
+
+pub trait DatagramFormat {
+    fn format(&self) -> String;
+}
 
 pub struct ConfigBuilder {
     from_addr: String,
@@ -37,11 +44,7 @@ pub struct ConfigBuilder {
 
 impl ConfigBuilder {
     pub fn new() -> ConfigBuilder {
-        Self {
-            from_addr: "127.0.0.1:0".into(),
-            to_addr: "127.0.0.1:8125".into(),
-            namespace: String::new(),
-        }
+        ConfigBuilder::default()
     }
 
     pub fn from_addr(&mut self, addr: String) -> &mut ConfigBuilder {
@@ -68,6 +71,16 @@ impl ConfigBuilder {
     }
 }
 
+impl default::Default for ConfigBuilder {
+    fn default() -> ConfigBuilder {
+        ConfigBuilder {
+            from_addr: "127.0.0.1:0".into(),
+            to_addr: "127.0.0.1:8125".into(),
+            namespace: String::new(),
+        }
+    }
+}
+
 /// `Client` handles sending metrics to the DogstatsD server.
 pub struct Client {
     socket: UdpSocket,
@@ -75,6 +88,7 @@ pub struct Client {
 }
 
 impl Client {
+    /// Construct a client with a specific Client.
     pub async fn with_config(config: ConfigBuilder) -> Result<Self> {
         Ok(Self {
             socket: UdpSocket::bind(config.from_addr.clone()).await?,
@@ -89,7 +103,7 @@ impl Client {
         S: Into<Cow<'a, str>>,
         T: Tag,
     {
-        self.send(&Count::Inc(metric_name.into().as_ref(), 0), tags)
+        self.send(&Count::Inc::<u32>(metric_name.into().as_ref()), tags)
             .await
     }
 
@@ -100,7 +114,7 @@ impl Client {
         S: Into<Cow<'a, str>>,
         T: Tag,
     {
-        self.send(&Count::Dec(metric_name.into().as_ref(), 0), tags)
+        self.send(&Count::Dec::<u32>(metric_name.into().as_ref()), tags)
             .await
     }
 
@@ -181,6 +195,13 @@ impl Client {
             tags,
         )
         .await
+    }
+
+    pub async fn log<T>(&self, event: Event, _tags: T) -> Result<()>
+    where T : Tag
+    {
+        self.socket.send_to(&event.format().as_bytes(), &self.config.to_addr).await?;
+        Ok(())
     }
 
     async fn send<M, I, T>(&self, metric: &M, tags: I) -> Result<()>

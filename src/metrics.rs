@@ -30,18 +30,19 @@ pub trait Tag {
 /// A `Count` can be used to track the total number of connections made to a database or the total number of requests to an endpoint.
 /// This number of events can accumulate or decrease over time—it is not monotonically increasing.
 pub enum Count<'a, T: Integer + fmt::Display> {
-    // TODO
-    // Why do I need to specify T here?
-    Inc(&'a str, T),
-    Dec(&'a str, T),
+    /// An increment by one metric.
+    Inc(&'a str),
+    /// A decrement by one metric.
+    Dec(&'a str),
+    /// Increase or decrease a metric arbitrarily.
     Arb(&'a str, T),
 }
 
 impl<'a, T: Clone + fmt::Display + Integer> Metric for Count<'a, T> {
     fn write(&self) -> String {
         match &*self {
-            Count::Inc(name, _) => write_count_metric_arb(name, 1),
-            Count::Dec(name, _) => write_count_metric_arb(name, -1),
+            Count::Inc(name) => write_count_metric_arb(name, 1),
+            Count::Dec(name) => write_count_metric_arb(name, -1),
             Count::Arb(name, amt) => write_count_metric_arb(name, amt.clone()),
         }
     }
@@ -209,19 +210,19 @@ mod tests {
 
     #[test]
     fn test_metrics_arb() {
-        let arb = Count::Arb("custom_metric", 5);
+        let arb = Count::Arb::<u32>("custom_metric", 5);
         assert_eq!(arb.write(), "custom_metric:5|c");
     }
 
     #[test]
     fn test_metrics_inc() {
-        let inc = Count::Inc("custom_metric", 1);
+        let inc = Count::Inc::<u32>("custom_metric");
         assert_eq!(inc.write(), "custom_metric:1|c");
     }
 
     #[test]
     fn test_metrics_dec() {
-        let dec = Count::Dec("custom_metric", -1);
+        let dec = Count::Dec::<u32>("custom_metric");
         assert_eq!(dec.write(), "custom_metric:-1|c");
     }
 
