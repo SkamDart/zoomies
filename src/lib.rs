@@ -19,7 +19,9 @@
 //!   Ok(())
 //! }
 //! ```
+use std::collections::HashMap;
 use std::default;
+use std::fmt;
 
 use async_std::{io::Result, net::UdpSocket};
 
@@ -31,6 +33,31 @@ pub use metrics::*;
 
 pub trait DatagramFormat {
     fn format(&self) -> String;
+}
+
+// Convert rust HashMap to a -> #<TAG_KEY_1>:<TAG_VALUE_1>,<TAG_2> format.
+impl<K, V> DatagramFormat for HashMap<K, V>
+where
+    K: fmt::Display,
+    V: fmt::Display,
+{
+    fn format(&self) -> String {
+        if self.len() == 0 {
+            String::new()
+        } else {
+            let map_elem_size = self.iter().fold(0, |acc, (k, v)| {
+                acc + k.to_string().len() + v.to_string().len() + 3
+            });
+            let capacity = map_elem_size + self.len() + 1;
+            let mut buf = String::with_capacity(capacity);
+            buf.push_str("|#");
+            for (k, v) in self.into_iter() {
+                let item = k.to_string() + ":" + &v.to_string() + ",";
+                buf.push_str(&item);
+            }
+            buf.trim_end_matches(",").to_string()
+        }
+    }
 }
 
 pub struct ConfigBuilder {
@@ -101,5 +128,45 @@ impl Client {
             .send_to(df.format().as_bytes(), &self.config.to_addr)
             .await?;
         Ok(())
+    }
+
+    pub async fn send_with_tags<M: DatagramFormat>(&self, df: &M, tags: M) -> Result<()> {
+        let content = df.format() + &tags.format();
+        self.socket
+            .send_to(content.as_bytes(), &self.config.to_addr)
+            .await?;
+        Ok(())
+    }
+}
+
+mod test {
+    use super::DatagramFormat;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_empty_tag() {
+        let timber_resources: HashMap<&str, i32> = [].iter().cloned().collect();
+        assert_eq!(timber_resources.format(), String::new());
+    }
+
+    #[test]
+    fn test_single_tag() {
+        let timber_resources: HashMap<&str, i32> = [("Norway", 100)].iter().cloned().collect();
+        assert_eq!(timber_resources.format(), "|#Norway:100");
+    }
+
+    #[test]
+    #[ignore]
+    fn test_multiple_tags() {
+        // TODO find better way to test this as iterator creation is not idempotent.
+        let timber_resources: HashMap<&str, i32> =
+            [("Norway", 100), ("Denmark", 50), ("Iceland", 10)]
+                .iter()
+                .cloned()
+                .collect();
+        assert_eq!(
+            timber_resources.format(),
+            "|#Norway:100,Denmark:50,Iceland:10"
+        );
     }
 }
