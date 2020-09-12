@@ -1,9 +1,8 @@
 use std::fmt;
-use std::io;
 
-use crate::DatagramFormat;
 use num_integer::Integer;
 
+use crate::DatagramFormat;
 /// The module, `zoomies::metrics`, implements the following metric types that are accepted by DataDog.
 ///
 /// Metrics
@@ -49,17 +48,6 @@ impl<'a, T: fmt::Display + Integer> DatagramFormat for Metric<'a, T> {
         msg.push_str(&value);
         msg.push_str(identifier);
         msg
-    }
-}
-
-/// This trait represents anything that can be turned into a tag.
-pub trait Tag {
-    fn write<W: io::Write>(&self, w: &mut W) -> io::Result<()>;
-}
-
-impl<T: AsRef<str>> Tag for T {
-    fn write<W: io::Write>(&self, w: &mut W) -> io::Result<()> {
-        w.write_all(self.as_ref().as_bytes())
     }
 }
 

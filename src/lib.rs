@@ -31,6 +31,7 @@ pub use events::*;
 mod metrics;
 pub use metrics::*;
 
+// Trait that can serialize a type into the DogStatsD datagram format.
 pub trait DatagramFormat {
     fn format(&self) -> String;
 }
