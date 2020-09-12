@@ -4,7 +4,7 @@
 //!
 //! Use a `ConfigBuilder` to configure an asynchronous `Client`.
 //!
-//! ```
+//! ```notest
 //! use zoomies::{Client, ConfigBuilder};
 //!
 //! #[async_std::main]
@@ -19,12 +19,9 @@
 //!   Ok(())
 //! }
 //! ```
-use std::borrow::Cow;
 use std::default;
-use std::fmt;
 
 use async_std::{io::Result, net::UdpSocket};
-use num_integer::Integer;
 
 mod events;
 pub use events::*;
@@ -96,123 +93,12 @@ impl Client {
         })
     }
 
-    /// Increment a StatsD counter.
-    pub async fn inc<'a, I, S, T>(&self, metric_name: S, tags: I) -> Result<()>
+    pub async fn send<M>(&self, df: &M) -> Result<()>
     where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
+        M: DatagramFormat,
     {
-        self.send(&Count::Inc::<u32>(metric_name.into().as_ref()), tags)
-            .await
-    }
-
-    /// Decrement a StatsD counter.
-    pub async fn dec<'a, I, S, T>(&self, metric_name: S, tags: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
-    {
-        self.send(&Count::Dec::<u32>(metric_name.into().as_ref()), tags)
-            .await
-    }
-
-    /// Arbitrarily add to  a StatsD counter.
-    pub async fn arb<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
-        N: Copy + fmt::Display + Integer,
-    {
-        self.send(&Count::Arb(metric_name.into().as_ref(), n), tags)
-            .await
-    }
-
-    /// Adds a value to histogram metric type.
-    ///
-    /// The HISTOGRAM metric submission type represents the statistical distribution of a set of values calculated Agent-side in one time interval.
-    pub async fn histogram<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
-        N: Copy + fmt::Display + Integer,
-    {
-        self.send(
-            &Histogram::new(metric_name.into().as_ref(), n.to_string().as_ref()),
-            tags,
-        )
-        .await
-    }
-
-    /// Adds a value to the distribution metric type.
-    ///
-    /// The DISTRIBUTION metric submission type represents the global statistical distribution of a set of values calculated across your entire distributed infrastructure in one time interval.
-    pub async fn distribution<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
-        N: Copy + fmt::Display + Integer,
-    {
-        self.send(
-            &Distribution::new(metric_name.into().as_ref(), n.to_string().as_ref()),
-            tags,
-        )
-        .await
-    }
-
-    pub async fn set<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
-        N: Copy + fmt::Display + Integer,
-    {
-        self.send(
-            &Set::new(metric_name.into().as_ref(), n.to_string().as_ref()),
-            tags,
-        )
-        .await
-    }
-
-    /// Adds a gauge value.
-    ///
-    /// The GAUGE metric submission type represents a snapshot of events in one time interval.
-    /// This representative snapshot value is the last value submitted to the Agent during a time interval.
-    /// A GAUGE can be used to take a measure of something reporting continuously—like the available disk space or memory used.
-    pub async fn gauge<'a, I, S, T, N>(&self, metric_name: S, n: N, tags: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        S: Into<Cow<'a, str>>,
-        T: Tag,
-        N: Copy + fmt::Display + Integer,
-    {
-        self.send(
-            &Gauge::new(metric_name.into().as_ref(), n.to_string().as_ref()),
-            tags,
-        )
-        .await
-    }
-
-    pub async fn log(&self, event: Event) -> Result<()> {
         self.socket
-            .send_to(&event.format().as_bytes(), &self.config.to_addr)
-            .await?;
-        Ok(())
-    }
-
-    async fn send<M, I, T>(&self, metric: &M, tags: I) -> Result<()>
-    where
-        M: Metric,
-        I: IntoIterator<Item = T>,
-        T: Tag,
-    {
-        let formatted = format_metric(metric, &self.config.namespace, tags)?;
-        self.socket
-            .send_to(formatted.as_slice(), &self.config.to_addr)
+            .send_to(df.format().as_bytes(), &self.config.to_addr)
             .await?;
         Ok(())
     }
