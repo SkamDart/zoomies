@@ -1,7 +1,7 @@
 [package]
 name = "zoomies"
 version = "0.1.0"
-authors = ["Cameron Dart <cdart@anduril.com>"]
+authors = ["Cameron Dart <cdart2@illinois.edu>"]
 license = "MIT"
 description = "An asynchronous DogStatsD client."
 documentation = "https://github.com/SkamDart/zoomies"
