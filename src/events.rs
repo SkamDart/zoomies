@@ -16,29 +16,6 @@ pub enum Priority {
     Normal,
 }
 
-impl DatagramFormat for Priority {
-    fn format(&self) -> String {
-        let prefix = "p:";
-        let p = match &*self {
-            Priority::Low => "low",
-            Priority::Normal => "normal",
-        };
-        let mut buf = String::with_capacity(prefix.len() + p.len());
-        buf.push_str(prefix);
-        buf.push_str(p);
-        buf
-    }
-}
-
-impl DatagramFormat for Option<Priority> {
-    fn format(&self) -> String {
-        match &*self {
-            None => "".to_string(),
-            Some(priority) => priority.format(),
-        }
-    }
-}
-
 #[derive(Clone, PartialEq)]
 pub enum AlertType {
     Error,
@@ -47,23 +24,65 @@ pub enum AlertType {
     Warning,
 }
 
-impl DatagramFormat for AlertType {
+#[derive(Clone)]
+pub struct Hostname(String);
+
+#[derive(Clone)]
+pub struct EventTime(SystemTime);
+
+#[derive(Clone)]
+pub struct AggKey(String);
+
+#[derive(Clone)]
+pub struct SourceTypeName(String);
+
+impl DatagramFormat for &SourceTypeName {
     fn format(&self) -> String {
-        match &*self {
+        "|s:".to_owned() + &self.0.to_owned()
+    }
+}
+
+impl DatagramFormat for &Priority {
+    fn format(&self) -> String {
+        let p = match &*self {
+            Priority::Low => "low",
+            Priority::Normal => "normal",
+        };
+        "|p:".to_owned() + &p.to_owned()
+    }
+}
+
+impl DatagramFormat for &AlertType {
+    fn format(&self) -> String {
+        let suffix = match &*self {
             AlertType::Error => "error".to_string(),
             AlertType::Info => "info".to_string(),
             AlertType::Success => "success".to_string(),
             AlertType::Warning => "warning".to_string(),
-        }
+        };
+        "|t:".to_owned() + &suffix
     }
 }
 
-impl DatagramFormat for Option<AlertType> {
+impl DatagramFormat for &Hostname {
     fn format(&self) -> String {
-        match &*self {
-            None => "".to_string(),
-            Some(alert_type) => alert_type.format(),
-        }
+        "|h:".to_owned() + &self.0.to_owned()
+    }
+}
+
+impl DatagramFormat for &AggKey {
+    fn format(&self) -> String {
+        "|k:".to_owned() + &self.0.to_owned()
+    }
+}
+
+impl DatagramFormat for &SystemTime {
+    fn format(&self) -> String {
+        let suffix = match self.duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(n) => n.as_secs(),
+            Err(_) => SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs(),
+        };
+        "|d:".to_owned() + &suffix.to_string()
     }
 }
 
@@ -79,21 +98,19 @@ pub struct Event {
     timestamp: Option<SystemTime>,
     /// Add a hostname to the event.
     /// There is no default.
-    hostname: Option<String>,
+    hostname: Option<Hostname>,
     /// Add an aggregation key to group the event.
     /// There is no default.
-    agg_key: Option<String>,
+    agg_key: Option<AggKey>,
     /// Event priority.
     /// Default is Normal.
     priority: Option<Priority>,
     /// Event source.
     /// There is no default.
-    source_type_name: Option<String>,
+    source_type_name: Option<SourceTypeName>,
     /// Even alert type.
     /// Defaults to info.
     alert_type: Option<AlertType>,
-    // Associated tags
-    // tags: Option<T>,
 }
 
 impl Event {
@@ -121,12 +138,16 @@ impl Event {
     }
 
     pub fn hostname(&mut self, host: &str) -> &mut Self {
-        self.hostname = Some(host.to_string());
+        self.hostname = Some(Hostname {
+            0: host.to_string(),
+        });
         self
     }
 
     pub fn agg_key(&mut self, agg_key: &str) -> &mut Self {
-        self.agg_key = Some(agg_key.to_string());
+        self.agg_key = Some(AggKey {
+            0: agg_key.to_string(),
+        });
         self
     }
 
@@ -136,7 +157,9 @@ impl Event {
     }
 
     pub fn source_type_name(&mut self, name: &str) -> &mut Self {
-        self.source_type_name = Some(name.to_string());
+        self.source_type_name = Some(SourceTypeName {
+            0: name.to_string(),
+        });
         self
     }
 
@@ -159,41 +182,43 @@ impl Event {
     }
 }
 
+// Very poorly named function that converts a &str to a String and gets then length.
+//
+// This is a helper for the DatagramFormat for Event.
+fn convert_len(name: &str) -> (String, usize) {
+    (name.to_string(), name.len())
+}
+
+fn convert_len_from_opt<T: DatagramFormat>(opt: Option<T>) -> (String, usize) {
+    convert_len(&opt.format())
+}
+
 impl DatagramFormat for Event {
     fn format(&self) -> String {
-        // Add this to Datadog format trait.
-        let (title, title_size) = {
-            let title = &self.title;
-            (title, title.len())
-        };
-        let (text, text_size) = {
-            let text = &self.text;
-            (text, text.len())
-        };
-        /*
-        let (timestamp, timestamp_size) = match self.timestamp {
-            Some(ts) => {
-                match ts.duration_since(SystemTime::UNIX_EPOCH) {
-                    Ok(elapsed) => {
-                        let time = elapsed.to_string();
-                        (time, time.len())
-                    },
-                    Err(_) => ("", 0),
-                }
-            }
-            None => ("", 0),
-        };:
-        */
-        let capacity = title_size + text_size;
+        let (title, title_len) = convert_len(&self.title);
+        let (text, text_len) = convert_len(&self.text);
+        let (ts, ts_len) = convert_len_from_opt(self.timestamp.as_ref());
+        let (hn, hn_len) = convert_len_from_opt(self.hostname.as_ref());
+        let (ak, ak_len) = convert_len_from_opt(self.agg_key.as_ref());
+        let (ap, ap_len) = convert_len_from_opt(self.priority.as_ref());
+        let (at, at_len) = convert_len_from_opt(self.alert_type.as_ref());
+        let (st, st_len) = convert_len_from_opt(self.source_type_name.as_ref());
+        let capacity = title_len + text_len + ts_len + hn_len + ak_len + ap_len + at_len + st_len;
         let mut msg = String::with_capacity(capacity);
         msg.push_str("_e{");
-        msg.push_str(&title_size.to_string());
+        msg.push_str(&title_len.to_string());
         msg.push_str(",");
-        msg.push_str(&text_size.to_string());
+        msg.push_str(&text_len.to_string());
         msg.push_str("}:");
-        msg.push_str(title);
+        msg.push_str(&title);
         msg.push_str("|");
-        msg.push_str(text);
+        msg.push_str(&text);
+        msg.push_str(&ts);
+        msg.push_str(&hn);
+        msg.push_str(&ak);
+        msg.push_str(&ap);
+        msg.push_str(&st);
+        msg.push_str(&at);
         msg
     }
 }
@@ -204,17 +229,17 @@ mod test {
 
     #[test]
     fn test_event_creation() {
-        // let event: Event = Event::new()
-        //     .title("Chungus")
-        //     .text("Big Chungus")
-        //     .priority(Priority::Low)
-        //     .timestamp(std::time::SystemTime::UNIX_EPOCH)
-        //     .hostname("kevin")
-        //     .agg_key("something_cool")
-        //     .source_type_name("your_app")
-        //     .alert_type(AlertType::Error)
-        //     .build()
-        //     .expect("Failed to build");
+        let _event: Event = Event::new()
+            .title("Chungus")
+            .text("Big Chungus")
+            .priority(Priority::Low)
+            .timestamp(std::time::SystemTime::UNIX_EPOCH)
+            .hostname("kevin")
+            .agg_key("something_cool")
+            .source_type_name("your_app")
+            .alert_type(AlertType::Error)
+            .build()
+            .expect("Failed to build");
     }
 
     #[test]
@@ -226,33 +251,19 @@ mod test {
     }
 
     #[test]
-    #[ignore]
-    fn test_event_with_timestamp() {
-        assert_eq!(
-            Event::new()
-                .title("Chungus")
-                .text("Big Chungus")
-                .priority(Priority::Low)
-                .format(),
-            "_e{7,11}:Chungus|Big Chungus|p:low"
-        );
-    }
-
-    #[test]
-    #[ignore]
     fn test_event_with_all_stoppers() {
         assert_eq!(
             Event::new()
                 .title("Chungus")
                 .text("Big Chungus")
                 .priority(Priority::Low)
-                .timestamp(std::time::SystemTime::UNIX_EPOCH)
+                .timestamp(SystemTime::UNIX_EPOCH)
                 .hostname("kevin")
                 .agg_key("something_cool")
                 .source_type_name("your_app")
                 .alert_type(AlertType::Error)
                 .format(),
-            "_e{7,11}:Chungus|Big Chungus|d:0|h:kevin|a:something_cool|p:low|s:your_app|t:error"
+            "_e{7,11}:Chungus|Big Chungus|d:0|h:kevin|k:something_cool|p:low|s:your_app|t:error"
         );
     }
 }
