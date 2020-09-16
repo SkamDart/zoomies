@@ -1,4 +1,4 @@
-use zoomies::{UdpClient, ConfigBuilder, Event, Metric};
+use zoomies::{ConfigBuilder, Event, Metric, UdpClient};
 
 use async_std::io;
 use async_std::task;

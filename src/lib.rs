@@ -37,7 +37,8 @@ pub trait DatagramFormat {
 }
 
 impl<T> DatagramFormat for Option<T>
-where T: DatagramFormat
+where
+    T: DatagramFormat,
 {
     fn format(&self) -> String {
         match &*self {
