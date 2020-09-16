@@ -2,10 +2,10 @@
 //!
 //! ## Usage
 //!
-//! Use a `ConfigBuilder` to configure an asynchronous `Client`.
+//! Use a `ConfigBuilder` to configure an asynchronous `UdpClient`.
 //!
 //! ```notest
-//! use zoomies::{Client, ConfigBuilder};
+//! use zoomies::{UdpClient, ConfigBuilder};
 //!
 //! #[async_std::main]
 //! async fn main() -> std::io::Result<()> {
@@ -15,7 +15,7 @@
 //!                .namespace("chungus".into())
 //!                .finish();
 //!
-//!   let client = Client::with_config(config).await?;
+//!   let client = UdpClient::with_config(config).await?;
 //!   Ok(())
 //! }
 //! ```
@@ -34,6 +34,18 @@ pub use metrics::*;
 // Trait that can serialize a type into the DogStatsD datagram format.
 pub trait DatagramFormat {
     fn format(&self) -> String;
+}
+
+impl<T> DatagramFormat for Option<T>
+where
+    T: DatagramFormat,
+{
+    fn format(&self) -> String {
+        match &*self {
+            None => String::new(),
+            Some(t) => t.format(),
+        }
+    }
 }
 
 // Convert rust HashMap to a -> #<TAG_KEY_1>:<TAG_VALUE_1>,<TAG_2> format.
@@ -107,12 +119,12 @@ impl default::Default for ConfigBuilder {
 }
 
 /// `Client` handles sending metrics to the DogstatsD server.
-pub struct Client {
+pub struct UdpClient {
     socket: UdpSocket,
     config: ConfigBuilder,
 }
 
-impl Client {
+impl UdpClient {
     /// Construct a client with a specific Client.
     pub async fn with_config(config: ConfigBuilder) -> Result<Self> {
         Ok(Self {
