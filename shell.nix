@@ -5,7 +5,7 @@ let
   crust = (rustChannels.stable.rust.override { extensions = [ "rust-src" ]; });
 in
 stdenv.mkDerivation {
-  name = "andurilapis-rs";
+  name = "zoomies";
   buildInputs = [ crust protobuf rustracer ];
   RUST_SRC_PATH = "${crust}/lib/rustlib/src/rust/src";
 }
