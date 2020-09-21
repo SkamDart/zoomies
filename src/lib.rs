@@ -12,18 +12,15 @@
 //!   let config = ConfigBuilder::new()
 //!                .from_addr("127.0.0.1:10001".into())
 //!                .to_addr("MY_STATSD_HOST:PORT".into())
-//!                .namespace("chungus".into())
 //!                .finish();
 //!
 //!   let client = UdpClient::with_config(config).await?;
 //!   Ok(())
 //! }
 //! ```
-use std::collections::HashMap;
-use std::default;
-use std::fmt;
+use std::{borrow, collections::HashMap, default, fmt};
 
-use async_std::{io::Result, net::UdpSocket};
+use async_std::{io::Result, net::UdpSocket, os::unix::net::UnixDatagram};
 
 mod events;
 pub use events::*;
@@ -76,7 +73,6 @@ where
 pub struct ConfigBuilder {
     from_addr: String,
     to_addr: String,
-    namespace: String,
 }
 
 impl ConfigBuilder {
@@ -94,16 +90,10 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn namespace(&mut self, ns: String) -> &mut ConfigBuilder {
-        self.namespace = ns;
-        self
-    }
-
     pub fn finish(&self) -> ConfigBuilder {
         ConfigBuilder {
             from_addr: self.from_addr.clone(),
             to_addr: self.to_addr.clone(),
-            namespace: self.namespace.clone(),
         }
     }
 }
@@ -113,12 +103,11 @@ impl default::Default for ConfigBuilder {
         ConfigBuilder {
             from_addr: "127.0.0.1:0".into(),
             to_addr: "127.0.0.1:8125".into(),
-            namespace: String::new(),
         }
     }
 }
 
-/// `Client` handles sending metrics to the DogstatsD server.
+/// `UdpClient` handles sending metrics to the DogstatsD server.
 pub struct UdpClient {
     socket: UdpSocket,
     config: ConfigBuilder,
@@ -152,6 +141,37 @@ impl UdpClient {
     }
 }
 
+/// `UdsClient` sends metrics to DogStatsD server via a local Unix Domain Socket.
+pub struct UdsClient {
+    socket: UnixDatagram,
+}
+
+impl UdsClient {
+    /// Construct a client with a specific Client.
+    pub async fn with_filepath<'a, P>(path: P) -> Result<Self>
+    where
+        P: Into<borrow::Cow<'a, str>>,
+    {
+        Ok(Self {
+            socket: UnixDatagram::bind(path.into().to_string()).await?,
+        })
+    }
+
+    pub async fn send<M>(&self, df: &M) -> Result<()>
+    where
+        M: DatagramFormat,
+    {
+        self.socket.send(df.format().as_bytes()).await?;
+        Ok(())
+    }
+
+    pub async fn send_with_tags<M: DatagramFormat>(&self, df: &M, tags: M) -> Result<()> {
+        let content = df.format() + &tags.format();
+        self.socket.send(content.as_bytes()).await?;
+        Ok(())
+    }
+}
+
 mod test {
     use super::DatagramFormat;
     use std::collections::HashMap;
@@ -171,7 +191,7 @@ mod test {
     #[test]
     #[ignore]
     fn test_multiple_tags() {
-        // TODO find better way to test this as iterator creation is not idempotent.
+        // TODO find better way to test this as iterator creation order is not idempotent.
         let timber_resources: HashMap<&str, i32> =
             [("Norway", 100), ("Denmark", 50), ("Iceland", 10)]
                 .iter()
