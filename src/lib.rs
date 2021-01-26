@@ -2,14 +2,14 @@
 //!
 //! ## Usage
 //!
-//! Use a `ConfigBuilder` to configure an asynchronous `UdpClient`.
+//! Use a `Config` to configure an asynchronous `UdpClient`.
 //!
 //! ```notest
-//! use zoomies::{UdpClient, ConfigBuilder};
+//! use zoomies::{UdpClient, Config};
 //!
 //! #[async_std::main]
 //! async fn main() -> std::io::Result<()> {
-//!   let config = ConfigBuilder::new()
+//!   let config = Config::new()
 //!                .from_addr("127.0.0.1:10001".into())
 //!                .to_addr("MY_STATSD_HOST:PORT".into())
 //!                .finish();
@@ -52,55 +52,54 @@ where
     V: fmt::Display,
 {
     fn format(&self) -> String {
-        if self.len() == 0 {
-            String::new()
-        } else {
-            let map_elem_size = self.iter().fold(0, |acc, (k, v)| {
-                acc + k.to_string().len() + v.to_string().len() + 3
-            });
-            let capacity = map_elem_size + self.len() + 1;
-            let mut buf = String::with_capacity(capacity);
-            buf.push_str("|#");
-            for (k, v) in self.into_iter() {
-                let item = k.to_string() + ":" + &v.to_string() + ",";
-                buf.push_str(&item);
+        match self.is_empty() {
+            true => String::new(),
+            false => {
+                let map_elem_size = self.iter().fold(0, |acc, (k, v)| {
+                    acc + k.to_string().len() + v.to_string().len() + 3
+                });
+                let capacity = map_elem_size + self.len() + 1;
+                let mut buf = String::with_capacity(capacity);
+                buf.push_str("|#");
+                for (k, v) in self.iter() {
+                    let item = k.to_string() + ":" + &v.to_string() + ",";
+                    buf.push_str(&item);
+                }
+                buf.trim_end_matches(',').to_string()
             }
-            buf.trim_end_matches(",").to_string()
         }
     }
 }
 
-pub struct ConfigBuilder {
+pub struct Config {
     from_addr: String,
     to_addr: String,
 }
 
-impl ConfigBuilder {
-    pub fn new() -> ConfigBuilder {
-        ConfigBuilder::default()
+impl Config {
+
+    pub fn new() -> Config {
+        Config::default()
     }
 
-    pub fn from_addr(&mut self, addr: String) -> &mut ConfigBuilder {
-        self.from_addr = addr;
-        self
+    pub fn from_addr(self, from_addr: String) -> Config {
+        Config {
+            from_addr,
+            ..self
+        }
     }
 
-    pub fn to_addr(&mut self, addr: String) -> &mut ConfigBuilder {
-        self.to_addr = addr;
-        self
-    }
-
-    pub fn finish(&self) -> ConfigBuilder {
-        ConfigBuilder {
-            from_addr: self.from_addr.clone(),
-            to_addr: self.to_addr.clone(),
+    pub fn to_addr(self, to_addr: String) -> Config {
+        Config {
+            to_addr,
+            ..self
         }
     }
 }
 
-impl default::Default for ConfigBuilder {
-    fn default() -> ConfigBuilder {
-        ConfigBuilder {
+impl default::Default for Config {
+    fn default() -> Config {
+        Config {
             from_addr: "127.0.0.1:0".into(),
             to_addr: "127.0.0.1:8125".into(),
         }
@@ -110,15 +109,23 @@ impl default::Default for ConfigBuilder {
 /// `UdpClient` handles sending metrics to the DogstatsD server.
 pub struct UdpClient {
     socket: UdpSocket,
-    config: ConfigBuilder,
+    config: Config,
 }
 
 impl UdpClient {
-    /// Construct a client with a specific Client.
-    pub async fn with_config(config: ConfigBuilder) -> Result<Self> {
+    pub async fn new() -> Result<Self> {
+        let config = Config::default();
         Ok(Self {
             socket: UdpSocket::bind(config.from_addr.clone()).await?,
-            config: config,
+            config,
+        })
+    }
+
+    /// Construct a client with a specific Client.
+    pub async fn with_config(config: Config) -> Result<Self> {
+        Ok(Self {
+            socket: UdpSocket::bind(config.from_addr.clone()).await?,
+            config,
         })
     }
 
@@ -172,6 +179,7 @@ impl UdsClient {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::DatagramFormat;
     use std::collections::HashMap;

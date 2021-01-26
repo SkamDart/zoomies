@@ -122,63 +122,60 @@ impl Event {
     }
 
     /// Set the event Title...
-    pub fn title(&mut self, title: &str) -> &mut Self {
-        self.title = title.to_string();
-        self
+    pub fn title<S: Into<String>>(self, title: S) -> Self {
+        Self {
+            title: title.into(),
+            ..self
+        }
     }
 
-    pub fn text(&mut self, text: &str) -> &mut Self {
-        self.text = text.to_string();
-        self
+    pub fn text<S: Into<String>>(self, text: S) -> Self {
+        Self {
+            text: text.into(),
+            ..self
+        }
     }
 
-    pub fn timestamp(&mut self, ts: SystemTime) -> &mut Self {
-        self.timestamp = Some(ts);
-        self
+    pub fn timestamp<T: Into<SystemTime>>(self, ts: T) -> Self {
+        Self {
+            timestamp: Some(ts.into()),
+            ..self
+        }
     }
 
-    pub fn hostname(&mut self, host: &str) -> &mut Self {
-        self.hostname = Some(Hostname {
-            0: host.to_string(),
-        });
-        self
+    pub fn hostname<S: Into<String>>(self, host: S) -> Self {
+        Self {
+            hostname: Some(Hostname(host.into())),
+            ..self
+        }
     }
 
-    pub fn agg_key(&mut self, agg_key: &str) -> &mut Self {
-        self.agg_key = Some(AggKey {
-            0: agg_key.to_string(),
-        });
-        self
+    pub fn agg_key<S: Into<String>>(self, agg_key: S) -> Self {
+        Self {
+            agg_key: Some(AggKey(agg_key.into())),
+            ..self
+        }
     }
 
-    pub fn priority(&mut self, priority: Priority) -> &mut Self {
-        self.priority = Some(priority);
-        self
+    pub fn priority(self, priority: Priority) -> Self {
+        Self {
+            priority: Some(priority),
+            ..self
+        }
     }
 
-    pub fn source_type_name(&mut self, name: &str) -> &mut Self {
-        self.source_type_name = Some(SourceTypeName {
-            0: name.to_string(),
-        });
-        self
+    pub fn source_type_name<S: Into<String>>(self, name: S) -> Self {
+        Self {
+            source_type_name: Some(SourceTypeName(name.into())),
+            ..self
+        }
     }
 
-    pub fn alert_type(&mut self, alert_type: AlertType) -> &mut Self {
-        self.alert_type = Some(alert_type);
-        self
-    }
-
-    pub fn build(&mut self) -> Result<Event, &'static str> {
-        Ok(Event {
-            title: self.title.to_string(),
-            text: self.text.to_string(),
-            timestamp: self.timestamp,
-            hostname: self.hostname.clone(),
-            agg_key: self.agg_key.clone(),
-            priority: self.priority.clone(),
-            source_type_name: self.source_type_name.clone(),
-            alert_type: self.alert_type.clone(),
-        })
+    pub fn alert_type(self, alert_type: AlertType) -> Self {
+        Self {
+            alert_type: Some(alert_type),
+            ..self
+        }
     }
 }
 
@@ -207,11 +204,11 @@ impl DatagramFormat for Event {
         let mut msg = String::with_capacity(capacity);
         msg.push_str("_e{");
         msg.push_str(&title_len.to_string());
-        msg.push_str(",");
+        msg.push(',');
         msg.push_str(&text_len.to_string());
         msg.push_str("}:");
         msg.push_str(&title);
-        msg.push_str("|");
+        msg.push('|');
         msg.push_str(&text);
         msg.push_str(&ts);
         msg.push_str(&hn);
@@ -226,21 +223,6 @@ impl DatagramFormat for Event {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn test_event_creation() {
-        let _event: Event = Event::new()
-            .title("Chungus")
-            .text("Big Chungus")
-            .priority(Priority::Low)
-            .timestamp(std::time::SystemTime::UNIX_EPOCH)
-            .hostname("kevin")
-            .agg_key("something_cool")
-            .source_type_name("your_app")
-            .alert_type(AlertType::Error)
-            .build()
-            .expect("Failed to build");
-    }
 
     #[test]
     fn test_simple_event() {
