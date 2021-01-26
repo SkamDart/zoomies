@@ -39,12 +39,12 @@ impl<'a, T: fmt::Display + Integer> DatagramFormat for Metric<'a, T> {
                     Metric::Arb(metric_name, i) => (metric_name, i.to_string()),
                     _ => unreachable!(),
                 };
-                (name, val.to_string(), "|c".into())
+                (name, val, "|c")
             }
         };
         let mut msg = String::with_capacity(metric_name.len() + value.len() + identifier.len());
         msg.push_str(metric_name);
-        msg.push_str(":");
+        msg.push(':');
         msg.push_str(&value);
         msg.push_str(identifier);
         msg
